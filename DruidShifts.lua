@@ -127,8 +127,12 @@ end
 
 local function Update()
     local mana = UnitPower("player", MANA)
-    -- Can't do math on a secret value; keep showing the last known counts.
-    if IsSecret(mana) then return end
+    -- Can't do math on a secret value; keep showing the last known counts,
+    -- or "?" if we never had any.
+    if IsSecret(mana) then
+        if #cells > 0 then return end
+        mana = nil
+    end
     local numForms = GetNumShapeshiftForms() or 0
     local shown = 0
     local activeCount
@@ -145,7 +149,10 @@ local function Update()
         cell:SetAlpha(active and 1 or 0.55)
 
         local count
-        if cost and cost > 0 then
+        if not mana then
+            cell.text:SetText("?")
+            cell.text:SetTextColor(0.6, 0.6, 0.6)
+        elseif cost and cost > 0 then
             count = math.floor(mana / cost)
             cell.text:SetText(count)
             cell.text:SetTextColor(CountColor(count))
@@ -250,10 +257,26 @@ SlashCmdList.DRUIDSHIFTS = function(msg)
         else
             Print("usage: /shifts scale <0.5 - 3>")
         end
+    elseif cmd == "debug" then
+        local mana = UnitPower("player", MANA)
+        Print(("build %s | issecretvalue: %s | C_Spell.GetSpellPowerCost: %s"):format(
+            tostring(select(4, GetBuildInfo())), tostring(issecretvalue ~= nil),
+            tostring(C_Spell ~= nil and C_Spell.GetSpellPowerCost ~= nil)))
+        Print(("mana secret: %s | mana: %s | forms: %s"):format(
+            tostring(IsSecret(mana)), IsSecret(mana) and "?" or tostring(mana),
+            tostring(GetNumShapeshiftForms())))
+        for i = 1, GetNumShapeshiftForms() or 0 do
+            local texture, active, castable, spellID = GetShapeshiftFormInfo(i)
+            local ok, cost = pcall(GetManaCost, spellID)
+            Print(("  form %d: spellID %s, active %s, cost %s"):format(
+                i, tostring(spellID), tostring(active), ok and tostring(cost) or ("error: " .. tostring(cost))))
+        end
+        local ok, err = pcall(Update)
+        if not ok then Print("Update error: " .. tostring(err)) end
     elseif cmd == "sound" then
         db.sound = not db.sound
         Print("warning sound " .. (db.sound and "on" or "off") .. ".")
     else
-        Print("commands: lock, unlock, reset, scale <n>, sound")
+        Print("commands: lock, unlock, reset, scale <n>, sound, debug")
     end
 end
