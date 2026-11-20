@@ -39,12 +39,19 @@ local function Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cffff7d0aDruidShifts|r: " .. msg)
 end
 
+local GetPowerCost = (C_Spell and C_Spell.GetSpellPowerCost) or GetSpellPowerCost
+
+-- Midnight-based clients can hide values from addons in combat ("secret values").
+local function IsSecret(v)
+    return issecretvalue ~= nil and issecretvalue(v)
+end
+
 local function GetManaCost(spellID)
-    if not spellID or not GetSpellPowerCost then return nil end
-    local costs = GetSpellPowerCost(spellID)
+    if not spellID or not GetPowerCost then return nil end
+    local costs = GetPowerCost(spellID)
     if not costs then return nil end
     for _, c in ipairs(costs) do
-        if c.type == MANA then return c.cost end
+        if c.type == MANA and not IsSecret(c.cost) then return c.cost end
     end
 end
 
@@ -120,6 +127,8 @@ end
 
 local function Update()
     local mana = UnitPower("player", MANA)
+    -- Can't do math on a secret value; keep showing the last known counts.
+    if IsSecret(mana) then return end
     local numForms = GetNumShapeshiftForms() or 0
     local shown = 0
     local activeCount
@@ -205,7 +214,8 @@ frame:RegisterUnitEvent("UNIT_POWER_FREQUENT", "player")
 frame:RegisterUnitEvent("UNIT_MAXPOWER", "player")
 for _, e in ipairs({
     "UPDATE_SHAPESHIFT_FORMS", "UPDATE_SHAPESHIFT_FORM", "SPELLS_CHANGED",
-    "CHARACTER_POINTS_CHANGED", "PLAYER_EQUIPMENT_CHANGED",
+    "CHARACTER_POINTS_CHANGED", "PLAYER_TALENT_UPDATE", "TRAIT_CONFIG_UPDATED",
+    "PLAYER_EQUIPMENT_CHANGED",
 }) do
     pcall(frame.RegisterEvent, frame, e)
 end
