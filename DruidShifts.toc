@@ -1,0 +1,8 @@
+## Interface: 11507, 11508
+## Title: DruidShifts
+## Notes: Shows how many times you can shift into each druid form before running out of mana.
+## Author: Manuel Nagele
+## Version: 0.1.0
+## SavedVariables: DruidShiftsDB
+
+DruidShifts.lua
